@@ -1,0 +1,386 @@
+---
+title: "Bellabeat Case Study with R"
+author: "Valyne"
+date: "2024-07-11"
+output: html_document
+---
+
+# Bellabeat Capstone Case Study
+## Bellabeat is a high-tech manufacturer of health-focused products for women. The company Collects data on activity, sleep, stress and reproductive health which has allowed Bellabeat to empower women with knowledge about their own health and habits.
+The objective of the study is to analyze smart device usage data in order to gain insight into how consumers are using smart device and using the information to obtain high-level recommendations to guide Bellabeat marketing strategy to reveal more opportunities for growth.
+The Bellabeat product focused on is Time. This wellness watch combines the timeless look of a classic timepiece with smart technology to track user activity, sleep, and stress. The Time watch connects to the Bellabeat app to provide insights into daily wellness.
+
+# ASK PHASE
+**Business task: Analyze smart device usage data in order to gain insight into how consumers use non-Bellabeat smart devices to help guide marketing strategy for the company.**
+## Stakeholders 
+* Urška Sršen: Bellabeat’s co-founder and Chief Creative Officer
+* Sando Mur: Mathematician and Bellabeat’s co-founder; key member of the Bellabeat executive team
+* Bellabeat marketing analytics team: A team of data analysts responsible for collecting, analyzing, and reporting data that helps guide Bellabeat’s marketing strategy.
+
+# PREPARE PHASE
+The data used is the Kaggle data set,*FitBit Business Tracker Data*, provided by Mobius.The data set is in the long format and include 18 csv files. The data set has limitations as only two months of the data are made available that is from *03/12/2016-05/12/2016* and the data set accounts for only 30 consumers who consented to the use of their data. Therefore, there may be a sampling bias as there is no data to account for the total population to validate if the sample size is a representative of the population. The data is open source as Thirty eligible Fitbit users consented to the submission of personal tracker data, including minute-level output for physical activity, heart rate, and sleep monitoring. It includes information about daily activity, steps, and heart rate that can be used to explore users’ habits.
+The data is not reliable and current as it accounts for only two months in 2016 and some data sets had missing data therefore reducing the integrity of the data.
+
+Since we are using the *Time* product from Bellabeat we would consider four data sets to gather specific information. The finalized specific information would be gathered from the daily activities, daily sleep, daily calories and hourly steps data sets.
+
+*The heartrate data set is not selected because of limited data for it only has entries for 8 users.*
+
+# PROCESS PHASE
+Used R because of the large amount data needing analysis and also R is a versatile tool for data analysis because of its extensive analysis capabilities through its rich ecosystem of packages and strong data visualization tools.
+
+##Installing package for analysis;
+```{r}
+install.packages("tidyverse")
+library(tidyverse)
+library(lubridate)
+```
+##Importing dataset and viewing
+Importing the dailyActivity_merged, dailyCalories_merged, hourlySteps_merged and sleepDay_merged data sets.
+
+```{r}
+library(readr)
+dailyActivity_merged <- read_csv("Fitbit Data 4.12.16-5.12.16/dailyActivity_merged.csv")
+head(dailyActivity_merged)
+dailyCalories_merged <- read_csv("Fitbit Data 4.12.16-5.12.16/dailyCalories_merged.csv")
+head(dailyCalories_merged)
+dailySteps_merged <- read_csv("Fitbit Data 4.12.16-5.12.16/dailySteps_merged.csv")
+head(dailySteps_merged)
+sleepDay_merged <- read_csv("Fitbit Data 4.12.16-5.12.16/sleepDay_merged.csv")
+head(sleepDay_merged)
+```
+
+#Cleaning the data
+```{r}
+install.packages("here")
+library(here)
+install.packages("skimr")
+library(skimr)
+install.packages("janitor")
+library(janitor)
+library(dplyr)
+library(tidyr)
+```
+
+##Renaming of datasets
+```{r}
+daily_activity <- dailyActivity_merged
+daily_calories <- dailyCalories_merged
+daily_steps <- dailySteps_merged
+daily_sleep <- sleepDay_merged
+```
+
+```{r}
+head(daily_activity)
+head(daily_calories)
+head(daily_steps)
+head(daily_sleep)
+```
+
+##verifying the number of unique user ids to remove duplicates
+```{r}
+n_distinct(daily_activity$Id)
+n_distinct(daily_calories$Id)
+n_distinct(daily_steps$Id)
+n_distinct(daily_sleep$Id)
+```
+The dailyActivity_merged contain information for 33 users of their daily activity that is daily steps, distance, intensity, calories.
+The dailyCalories_merged contain data on daily burned calories for 33 users.
+The hourlySteps_merged contain data on hourly steps for 33 users.
+The sleepDay_merged contain data on daily total sleep records, total minutes asleep and total time in bed for 24 users.
+
+###Checking for observations in each data frame
+```{r}
+nrow(daily_activity)
+nrow(daily_calories)
+nrow(daily_steps)
+nrow(daily_sleep)
+```
+The daily_activity, daily_calories, daily_steps data sets have 940 observation whereas the sleep_day data set has 413 observations
+
+### determine number of duplicates
+```{r}
+sum(duplicated(daily_activity))
+sum(duplicated(daily_calories))
+sum(duplicated(daily_steps))
+sum(duplicated(daily_sleep))
+```
+### remove the duplicates
+duplicates identified in the daily_sleep data set, to remove;
+
+```{r}
+daily_sleep <- daily_sleep %>% 
+  distinct() %>% 
+  drop_na()
+```
+
+*to confirm duplicates are removed*
+
+```{r}
+sum(duplicated(daily_sleep))
+
+```
+
+### Merging the dataset
+
+*changing the column names to be more specific to enable merging of the data into one dataset*
+
+```{r}
+clean_names(daily_activity)
+daily_activity <- rename_with(daily_activity,tolower)
+
+clean_names(daily_calories)
+daily_calories <- rename_with(daily_calories, tolower)
+
+clean_names(daily_steps)
+daily_steps <- rename_with(daily_steps, tolower)
+
+clean_names(daily_sleep)
+daily_sleep <- rename_with(daily_sleep, tolower)
+```
+
+
+*The date in the daily_sleep data set is in the as_datetime format whereas the time in the daily_activity data set is in the as_date format. Therefore, we need to change the daily_sleep as_datetime to as_date for the two data sets to have the same date column name and to be merged.
+
+```{r}
+daily_activity <- daily_activity %>% 
+  rename(date = activitydate) %>% 
+  mutate(date = as.Date(date, format = "%m/%d/%y"))
+head(daily_activity)
+
+daily_sleep <- daily_sleep %>% 
+  rename(date = sleepday) %>% 
+  mutate(date = as.Date(date, format = "%m/%d/%y"))
+head(daily_sleep)
+```
+
+
+
+**Merging**
+Since there were more users in the daily activity data set (33), than the sleep data set (24), we use the outer join to merge the data sets
+```{r}
+Daily_Activity <- merge(daily_activity, daily_sleep, by =  c("id", "date"), all = TRUE)
+View(Daily_Activity)
+head(Daily_Activity)
+```
+Selecting to get a review of the summary of the data we would be using 
+
+```{r}
+Daily_Activity %>% 
+  select(totalsteps, totaldistance, veryactiveminutes, sedentaryminutes, calories, totalsleeprecords ,totalminutesasleep, totaltimeinbed) %>% 
+  summary()
+```
+
+
+# Analysis of the Data set and Sharing
+Finding how many users are in the merged data set 
+```{r}
+n_distinct(Daily_Activity$id)
+```
+
+
+From the merged data set we can analyse the data to derive any relationship in the observations.
+```{r}
+install.packages("ggplot2")
+library(ggplot2)
+```
+
+* Relationship between total steps and sedentary minutes
+```{r}
+ggplot(Daily_Activity, aes(x=totalsteps, y= sedentaryminutes))+ geom_point()+ labs(title = "Fitbit : Total Steps VS Sedentary Minutes")
+```
+
+Generally, the relationship between total steps and sedentary minutes should be linear, in that as steps increase the sedentary minutes reduce which is not the case for these users. As some have less steps and less sedentary minutes whereas others have more steps and more sedentary minutes. The plot shows that for Fitbit users there may be other factors that affect their daily steps and sedentary minutes such as leisure times, working environment and overall physical activity patterns.
+
+Relationship between total minutes asleep and total time in bed
+```{r warning=FALSE}
+ggplot(Daily_Activity, aes(x=totalminutesasleep, y=totaltimeinbed))+ geom_point()+ geom_smooth(method = "loess", formula= 'y ~ x', color= "blue") +labs(title = "Fitbit: Total Minutes Asleep VS Total Time in Bed")
+```
+
+From the plot there is an linear relationship between time in bed and total time in bed as we expect.This consistency reinforces the idea that the more time someone spends in bed, the longer their total time in bed will be. Whether it’s for restful sleep or relaxation, understanding this relationship can inform lifestyle choices and sleep habits. Sleep tracking features can be incorporated to
+ provide valuable insights for marketing the smart watch.
+ 
+ Defining the relationship between total steps and total minutes asleep.We can check to see if the users who sleep more take more steps or fewer steps per day.
+ 
+```{r warning=FALSE}
+ggplot(Daily_Activity, aes(x= totalsteps, y= totalminutesasleep))+ geom_point() + labs(title = "Fitbit: Total steps VS Total Minutes Asleep")
+```
+ From the above plot there is no consistent relationship between users' total steps and total minutes asleep. Some who sleep more may lead sedentary lifestyles and those who sleep less may be more active.Inasmuch as this may be the case, we can consider individual variability since the relationship is not linear. That is some users may have different sleep needs and activity levels and some individuals take more steps regardless of their sleep duration. The relationship may vary from person to person due to the differences in stress, exercise, work and also some health conditions like insomnia that affect sleep quality and activity levels.
+ 
+ We can also define the relationship between total steps and calories
+```{r}
+ggplot(Daily_Activity, aes(x= totalsteps, y= calories))+ geom_point()+ geom_smooth(method= "loess", formula='y ~ x', color= "red")+ labs(title = "Fitbit: Total steps VS Calories")
+```
+Based on the above plot users who take more steps burn more calories. There is a linear relationship between total steps and calories burnt. This information can be used to encourage users who take fewer steps to have daily step goals to increase their steps per day. 
+ 
+ 
+ Determine the relationship between Very active minutes and the amount of calories burnt
+```{r}
+ggplot(Daily_Activity,aes(x=veryactiveminutes ,y= calories)) +
+  geom_point() +
+  geom_jitter() +
+  geom_smooth(method = "loess", formula = 'y ~ x', color="red") +
+  labs(title = "FITBIT USERS: Very_Active_Minutets VS Calories")
+```
+From the above plot,very active minutes is directly proportional to the amount of calories burnt by the users.That is the more the user indulges in activities during the day, the more the calories they burn.This can help in encouraging the users to participate in other activities aside from the walking especially for those with the goal of burning more calories.
+
+We can determine if the fitbit users mainly take part in walking in their very active minutes to see if walking is their chosen form of exercise or they take part in other types of exercises during their active minutes
+ 
+```{r}
+ggplot(Daily_Activity,aes(x=totalsteps ,y=veryactiveminutes)) +
+  geom_point() +
+  geom_jitter() +
+  geom_smooth(method = "loess", formula = 'y ~ x', color="red") +
+  labs(title = "FITBIT USERS: Total_Steps VS Very_Active_Minutes")
+```
+
+From the plot, we see that most fitbit users take part in walking as an exercise during their active minutes to maintain their health.It can also be identified that majority of the users take less steps during their active minutes. Therefore, most fitbit users take pat in other activities for exercise aside from walking to maintain their health during their active minutes.
+ 
+
+ 
+According to <https://www.medicinenet.com/how_many_steps_a_day_is_considered_active/article.htm> , Studies using the 10,000 steps per day goal have shown weight loss, improved glucose tolerance, and reduced blood pressure from increased physical activity toward achieving this goal. The following pedometer indices have been developed to provide a guideline on steps and activity levels:
+
+Sedentary: Less than 5,000 steps daily
+Low active: About 5,000 to 7,499 steps daily
+Somewhat active: About 7,500 to 9,999 steps daily
+Active: More than 10,000 steps daily
+
+The goal of 10,000 steps is the recommended daily step target for healthy adults to achieve health benefits.*individual needs may vary due to age, fitness level and health conditions*
+
+*Finding the average steps per day
+```{r}
+Daily_average_activity <- Daily_Activity %>% 
+  group_by(id) %>% 
+  summarize(mean_daily_calories = mean(calories), mean_daily_steps = mean(totalsteps))
+head(Daily_average_activity)
+```
+
+Classifying the users by daily steps
+
+```{r}
+User_type <- Daily_average_activity %>%
+  mutate (user_type = case_when(mean_daily_steps < 5000 ~ "Sedentary" , mean_daily_steps >= 5000 & mean_daily_steps <=7499 ~ "Low Active" , mean_daily_steps >= 7500 & mean_daily_steps <= 9999 ~ "Somewhat Active" , mean_daily_steps >= 10000 ~ "Active"))
+head(User_type)
+```
+
+Including Plots to know the type of users
+
+```{r}
+User_type_percentage <- User_type %>% 
+  group_by(user_type) %>% 
+  summarize(total = n()) %>% 
+  mutate(totals = sum(total)) %>% 
+  group_by(user_type) %>% 
+  summarize(total_percent = total/totals) %>% 
+  mutate(labels = scales :: percent (total_percent))
+
+User_type_percentage$user_type <- factor(User_type_percentage$user_type, levels = c("Sedentary", "Low Active", "Somewhat Active", "Active"))
+head(User_type_percentage)
+```
+
+```{r}
+User_type_percentage %>% 
+  ggplot(aes(x="", y = total_percent, fill = user_type)) +
+  geom_bar(stat = "identity", width = 1) +
+  coord_polar("y", start=0) +
+  theme_minimal() +
+  theme(axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        panel.border = element_blank(),
+        panel.grid = element_blank(),
+        axis.ticks = element_blank(),
+        axis.text.x = element_blank(),
+        plot.title = element_text(hjust=0.5, size =14, face = "bold")) +
+  geom_text(aes(label = labels),position = position_stack(vjust = 0.5)) + labs(title = "User_type_percentage")
+```
+ *The above pie-chart shows the percentage of the user type. Sedentary, Low Active, Somewhat Active and Active users forming 24.2%, 27.3%, 27.3% and 21.2% respectively.From the pie chart we can conclude that all type of users use the fitbit smart device.
+ 
+
+
+
+
+
+ 
+Regular physical activity contributes to better overall health and sleep.According to <https://www.sleepfoundation.org/physical-activity> physical activity can lead to better sleep efficiency and reduced anxiety contributing to the overall health of the individual. We can confirm if this is the case for the Fitbit users through checking their sleep trend each day during the week.
+
+In using the sleep data set,We can use the Daily activity merging it with INNER JOIN to accommodate all complete data in the daily activity and daily sleep data sets.
+
+```{r}
+Daily_Activity <- merge(daily_activity, daily_sleep, by =  c("id", "date"))
+View(Daily_Activity)
+head(Daily_Activity)
+```
+confirming the number of unique users available in the data set
+```{r}
+n_distinct(Daily_Activity$id)
+```
+There only 24 unique users with complete data on daily activity and daily sleep data sets.Determining the sleep trends during each day of the week;
+
+```{r}
+weekday_steps_sleep <- Daily_Activity %>% 
+  mutate(weekday = weekdays(date))
+
+weekday_steps_sleep$weekday <- ordered(weekday_steps_sleep$weekday, levels = c("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")) 
+
+weekday_steps_sleep <- weekday_steps_sleep %>% 
+  group_by(weekday) %>% 
+  summarize(Daily_Steps = mean(totalsteps), Daily_Sleep =mean(totalminutesasleep))
+head(weekday_steps_sleep)
+```
+```{r}
+ggplot(weekday_steps_sleep,aes(x=weekday, y=Daily_Steps,fill = '#006699')) +
+  geom_col()+
+  geom_hline(yintercept = 7500)+
+  labs(title = "Steps_per_day")
+```
+From the bars we can identify that the users walk on average 7500 daily steps apart from Friday where the steps fall a little lower than the other days.There is a huge difference between the steps walked on Thursday and on Friday. This could be Fitbit users take their rest more on Fridays compared to other days of the week.
+
+The recommended sleep duration is 7 to 8 hours that is 420 to 480 minutes. Determining the amount of sleep each day for the Fitbit users;
+
+```{r}
+ggplot(weekday_steps_sleep,aes(x=weekday, y=Daily_Sleep,fill = "#006699")) +
+  geom_col()+
+  geom_hline(yintercept = c(420, 480))+
+  labs(title = "Sleep_per_day")
+```
+The fitbit users sleep for minutes between 400 and 450 minutes, with Tuesday being the day they sleep for the least amount of minutes and Friday having the most sleeping minutes.Fitbit users sleep the recommended minutes on Monday, Thursday, Friday and Saturday.Therefore, Sleep reminders can be sent to the users particularly of Tuesday, Wednesday and Sunday with benefits of efficient quality sleep sent to the app.
+From the two graphs we can conclude that the fitbit users are less active on Fridays than any other day of the week.
+
+##ACT PHASE
+Using the above analysis findings, Bellabeat can decide how best to implement changes and take actions.However the above analysis has some limitations. That is, limited set of data which may not be a representation of the population. Less data leads to lower confidence level hence there is a greater possibility that the sample may not accurately reflect the greater population. Therefore Bellabeat can consider using a different data set with more data or their own data to be more precise.
+
+#**Recommendations include**
+ **Scheduled activity notifications.**
+From our data all type of users use the smart device but not all are active. 21.2%, who made up the minority of the users were active. The somewhat active and low active users each formed 27.3%. The sedentary users formed 24.2% of the population.Reminders can be sent to the users on their daily achieved steps and the recommended daily steps of 8000 to encourage them set daily goals.The reminders can also be sent to the app where the users can read more information on the importance of attaining the goal such as the advantages of leading an active lifestyle for it reduces risks of lifestyle diseases such as obesity and cardiovascular diseases. The app can also recommend other exercise activities such as intensity training, yoga, cardio, running, skipping and cycling to improve on their active hours.The particular exercise can be specific according to the preference of the user.
+*For marketing strategies;*
+*Targeting Inactive Individuals:
+For individuals who are sedentary who spending long periods sitting, positioning the step tracker as a way to get started in walking more is effective. Marketing messages can emphasize how tracking steps encourages small lifestyle changes, such as taking short walks during breaks or after meals.Encourage behavior such as taking the stairs or walking during phone calls.
+*Promoting Active Lifestyles:
+For those who are already active, highlight the step tracker as a tool to measure steps they’re already taking. Position it as a way to quantify their physical activity and set goals for maintaining an active lifestyle.
+
+
+**Scheduled sleep reminders.**
+The users sleep for a time below the required 7 hours on Tuesday, Wednesday and Sunday. Alarms can be put that go off on a specific time each day to serve as a reminder for the users. Also on the specific low sleep days a post or article on how of efficient and quality sleep leads to a more productive day can be sent to the app.
+*For the marketing strategy*
+*User segmentation and targeting:
+Segment users into different groups:
+Active Sleepers: Users who sleep well and take many steps. Inactive Sleepers: Users who sleep well but have low step counts. Sleep-Deprived Active Users: Users who sleep less but are highly active.
+*Tailor marketing messages to each segment:
+For active sleepers, emphasize overall health benefits.
+For inactive sleepers, highlight the importance of physical activity.
+For sleep-deprived active users, position the product as a holistic health solution for both active lifestyles and efficient quality sleep.
+
+
+**Creating a workout community.**
+Based on the geography of the users, they can be grouped to form workout communities who have scheduled times for walking exercises or other form of exercises and also scheduled times where they attend health education classes. The communities would create a sense of belonging and also act a platform for accountability. Consider creating step challenges or virtual walking groups to foster a sense of community. Also encourage users to share achievements and motivate each other. 
+
+
+**Congratulatory messages.**
+Based on the calories burnt on a particular day, a congratulatory message can be sent through the app.The users with positive deviations can receive badges for their accomplishments. A goal based on the user's specific BMI can be set and recommendations on healthy diet practices be made available on the app tailored according to the needs of the user.The marketing team can also offer celebratory suggestions when milestones are achieved.
+
+
+**Health and Wellness Integration.**
+*Partner with health and wellness brands or professionals:
+Offer joint promotions or discounts. The team can position the product as part of a health strategy.
+
+
+
